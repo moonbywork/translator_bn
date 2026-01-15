@@ -28,9 +28,7 @@ if not RENDER_EXTERNAL_URL:
 # ======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📤 Anonymous Subtitle Submission Bot\n\n"
         "Send your .srt file here (DM only).\n"
-        "Your name will NOT be shown.\n"
     )
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
