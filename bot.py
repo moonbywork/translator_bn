@@ -26,6 +26,11 @@ if not RENDER_EXTERNAL_URL:
 # ----------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
+        "Send your .srt in DM.\n"
+        "Put the translation name as the caption (1 line only).\n\n"
+        "Format sent to group:\n"
+        "MovieName\n"
+        "Your Name"
     )
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -69,20 +74,20 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("❌ No document detected.")
         return
 
-    # Require translation name from caption (1 line)
     translation_name = (msg.caption or "").strip()
     if not translation_name:
-        await msg.reply_text("❌ Please include the translation name as caption.\nExample: MovieName")
+        await msg.reply_text(
+            "❌ Caption required.\nExample:\nMovieName"
+        )
         return
 
-    # Enforce .srt only
     if doc.file_name and not doc.file_name.lower().endswith(".srt"):
         await msg.reply_text("❌ Only .srt files are allowed.")
         return
 
     sender = sender_name(msg)
 
-    # ✅ EXACT FORMAT: 2 lines only
+    # ✅ EXACT FORMAT (2 lines ONLY)
     caption = f"{translation_name}\n{sender}"
 
     try:
@@ -99,7 +104,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
 
-    # DM only
     if msg.chat.type != "private":
         return
 
@@ -113,11 +117,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sender = sender_name(msg)
 
-    # ✅ EXACT FORMAT: 2 lines only
+    # ✅ EXACT FORMAT (2 lines ONLY)
     out = f"{text}\n{sender}"
 
     try:
-        await context.bot.send_message(chat_id=DEST_CHAT_ID, text=out)
+        await context.bot.send_message(
+            chat_id=DEST_CHAT_ID,
+            text=out
+        )
         await msg.reply_text("✅ Message sent.")
     except Exception as e:
         await msg.reply_text(f"❌ Failed to send.\n{e}")
