@@ -9,9 +9,6 @@ from telegram.ext import (
     filters,
 )
 
-# ======================
-# LOAD ENV
-# ======================
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -23,12 +20,12 @@ if not BOT_TOKEN:
 if not RENDER_EXTERNAL_URL:
     raise RuntimeError("❌ Missing RENDER_EXTERNAL_URL")
 
-# ======================
-# COMMANDS
-# ======================
+
+# ----------------------
+# Commands
+# ----------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Send your .srt file here (DM only).\n"
     )
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -39,35 +36,54 @@ async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"title: {chat.title}"
     )
 
-# ======================
-# DOCUMENT HANDLER
-# ======================
+
+# ----------------------
+# Helpers
+# ----------------------
+def sender_name(msg) -> str:
+    u = msg.from_user
+    if u and u.full_name:
+        return u.full_name
+    if u and u.username:
+        return f"@{u.username}"
+    return "Unknown"
+
+
+# ----------------------
+# Handlers
+# ----------------------
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
 
-    # DM only (for anonymity)
+    # DM only
     if msg.chat.type != "private":
-        await msg.reply_text("❌ Please DM me the file for anonymous submission.")
-        return
-
-    doc = msg.document
-    if not doc or not doc.file_name:
-        await msg.reply_text("❌ Invalid file.")
-        return
-
-    if not doc.file_name.lower().endswith(".srt"):
-        await msg.reply_text("❌ Only .srt files are allowed.")
+        await msg.reply_text("❌ Please DM me for submission.")
         return
 
     if DEST_CHAT_ID == 0:
         await msg.reply_text("⚠️ Destination group not configured yet.")
         return
 
-    caption = (
-        "📥 New Subtitle Submission\n"
-        f"🗂 File: {doc.file_name}\n"
-        "👤 Sender: Anonymous"
-    )
+    doc = msg.document
+    if not doc:
+        await msg.reply_text("❌ No document detected.")
+        return
+
+    # Require translation name from caption (1 line)
+    translation_name = (msg.caption or "").strip()
+    if not translation_name:
+        await msg.reply_text("❌ Please include the translation name as caption.\nExample: MovieName")
+        return
+
+    # Enforce .srt only
+    if doc.file_name and not doc.file_name.lower().endswith(".srt"):
+        await msg.reply_text("❌ Only .srt files are allowed.")
+        return
+
+    sender = sender_name(msg)
+
+    # ✅ EXACT FORMAT: 2 lines only
+    caption = f"{translation_name}\n{sender}"
 
     try:
         await context.bot.send_document(
@@ -75,23 +91,50 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             document=doc.file_id,
             caption=caption,
         )
-        await msg.reply_text("✅ Submitted successfully (anonymous).")
+        await msg.reply_text("✅ Submitted.")
     except Exception as e:
         await msg.reply_text(f"❌ Failed to submit.\n{e}")
 
-# ======================
-# APP BUILDER
-# ======================
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+
+    # DM only
+    if msg.chat.type != "private":
+        return
+
+    if DEST_CHAT_ID == 0:
+        await msg.reply_text("⚠️ Destination group not configured yet.")
+        return
+
+    text = (msg.text or "").strip()
+    if not text:
+        return
+
+    sender = sender_name(msg)
+
+    # ✅ EXACT FORMAT: 2 lines only
+    out = f"{text}\n{sender}"
+
+    try:
+        await context.bot.send_message(chat_id=DEST_CHAT_ID, text=out)
+        await msg.reply_text("✅ Message sent.")
+    except Exception as e:
+        await msg.reply_text(f"❌ Failed to send.\n{e}")
+
+
 def build_app() -> Application:
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("id", get_id))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return app
 
-# ======================
-# MAIN (WEBHOOK FOR RENDER)
-# ======================
+
+# ----------------------
+# Main (Webhook for Render)
+# ----------------------
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", "10000"))
 
