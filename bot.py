@@ -26,8 +26,8 @@ if not RENDER_EXTERNAL_URL:
 # ----------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Send your .srt in DM.\n"
-        "Put the translation name as the caption (1 line only).\n\n"
+        "Send your .srt file here (DM only).\n"
+        "No caption needed.\n\n"
         "Format sent to group:\n"
         "MovieName\n"
         "Your Name"
@@ -54,6 +54,11 @@ def sender_name(msg) -> str:
     return "Unknown"
 
 
+def movie_name_from_filename(filename: str) -> str:
+    # Remove extension only
+    return filename.rsplit(".", 1)[0]
+
+
 # ----------------------
 # Handlers
 # ----------------------
@@ -62,7 +67,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # DM only
     if msg.chat.type != "private":
-        await msg.reply_text("❌ Please DM me for submission.")
         return
 
     if DEST_CHAT_ID == 0:
@@ -70,25 +74,18 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     doc = msg.document
-    if not doc:
-        await msg.reply_text("❌ No document detected.")
+    if not doc or not doc.file_name:
         return
 
-    translation_name = (msg.caption or "").strip()
-    if not translation_name:
-        await msg.reply_text(
-            "❌ Caption required.\nExample:\nMovieName"
-        )
+    # Enforce .srt only
+    if not doc.file_name.lower().endswith(".srt"):
         return
 
-    if doc.file_name and not doc.file_name.lower().endswith(".srt"):
-        await msg.reply_text("❌ Only .srt files are allowed.")
-        return
-
+    movie_name = movie_name_from_filename(doc.file_name)
     sender = sender_name(msg)
 
     # ✅ EXACT FORMAT (2 lines ONLY)
-    caption = f"{translation_name}\n{sender}"
+    caption = f"{movie_name}\n{sender}"
 
     try:
         await context.bot.send_document(
@@ -108,7 +105,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if DEST_CHAT_ID == 0:
-        await msg.reply_text("⚠️ Destination group not configured yet.")
         return
 
     text = (msg.text or "").strip()
@@ -117,7 +113,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sender = sender_name(msg)
 
-    # ✅ EXACT FORMAT (2 lines ONLY)
+    # Text forwarded with sender only
     out = f"{text}\n{sender}"
 
     try:
@@ -126,8 +122,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=out
         )
         await msg.reply_text("✅ Message sent.")
-    except Exception as e:
-        await msg.reply_text(f"❌ Failed to send.\n{e}")
+    except Exception:
+        pass
 
 
 def build_app() -> Application:
