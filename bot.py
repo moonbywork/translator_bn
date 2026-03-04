@@ -20,6 +20,8 @@ if not BOT_TOKEN:
 if not RENDER_EXTERNAL_URL:
     raise RuntimeError("❌ Missing RENDER_EXTERNAL_URL")
 
+LABEL = "Translator:"  # ✅ requested label
+
 
 # ----------------------
 # Commands
@@ -29,7 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Send your .srt file here (DM only).\n"
         "No caption needed.\n\n"
         "Format sent to group:\n"
-        'Translator: "Your Name"'
+        f"{LABEL} Your Name"
     )
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,11 +53,6 @@ def sender_name(msg) -> str:
     if u and u.username:
         return f"@{u.username}"
     return "Unknown"
-
-
-def movie_name_from_filename(filename: str) -> str:
-    # Remove extension only
-    return filename.rsplit(".", 1)[0]
 
 
 # ----------------------
@@ -80,11 +77,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not doc.file_name.lower().endswith(".srt"):
         return
 
-    movie_name = movie_name_from_filename(doc.file_name)
     sender = sender_name(msg)
 
-    # ✅ EXACT FORMAT (2 lines ONLY)
-    caption = f"{movie_name}\n{sender}"
+    # ✅ NEW FORMAT (caption does NOT repeat movie name)
+    caption = f"{LABEL} {sender}"
 
     try:
         await context.bot.send_document(
@@ -112,8 +108,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sender = sender_name(msg)
 
-    # Text forwarded with sender only
-    out = f"{text}\n{sender}"
+    # ✅ Text forwarded with Translator label
+    out = f"{text}\n{LABEL} {sender}"
 
     try:
         await context.bot.send_message(
