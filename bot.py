@@ -29,8 +29,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Send your .srt file here (DM only).\n"
         "No caption needed.\n\n"
         "Format sent to group:\n"
-        "MovieName\n"
-        "Your Name"
+        "Translator: Your Name"
     )
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
